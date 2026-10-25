@@ -1,0 +1,9 @@
+# YouTube (werbefrei) für Hisense VIDAA - Proxy für yt.services.wurmweb.at
+# In OMV: Services > Compose > Files > Add, diesen Inhalt einfügen, dann "Up".
+services:
+  vidaa-ytb:
+    image: ghcr.io/webwurm/vidaa-ytb:latest
+    container_name: vidaa-ytb
+    restart: unless-stopped
+    ports:
+      - "3080:3000"
