@@ -319,6 +319,40 @@ async function readRequestBody(req) {
 }
 
 /**
+ * Hôtes autorisés pour /cors-bypass/ (miroir de shouldProxyCorsHost côté client).
+ * Sans cette liste, le proxy relaierait n'importe quelle URL (proxy ouvert).
+ */
+const CORS_BYPASS_HOSTS = new Set([
+  'www.gstatic.com',
+  'gstatic.com',
+  'fonts.gstatic.com',
+  'yt3.ggpht.com',
+  'yt3.googleusercontent.com',
+  'i.ytimg.com',
+  'i9.ytimg.com',
+  'clients1.google.com',
+  'play.google.com',
+  'youtubei.googleapis.com',
+  'redirector.googlevideo.com'
+]);
+const CORS_BYPASS_HOST_SUFFIXES = [
+  '.googlevideo.com',
+  '.c.youtube.com',
+  '.gstatic.com',
+  '.ggpht.com',
+  '.googleusercontent.com',
+  '.ytimg.com'
+];
+
+export function isAllowedCorsBypassUrl(url) {
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return false;
+  const host = url.hostname.toLowerCase();
+  return (
+    CORS_BYPASS_HOSTS.has(host) || CORS_BYPASS_HOST_SUFFIXES.some((suffix) => host.endsWith(suffix))
+  );
+}
+
+/**
  * Résout l'URL cible vers YouTube ou via /cors-bypass/
  */
 function resolveUpstreamUrl(reqUrl) {
@@ -338,7 +372,11 @@ function resolveUpstreamUrl(reqUrl) {
     if (parsed.search) {
       rawTarget += (rawTarget.includes('?') ? '&' : '?') + parsed.search.slice(1);
     }
-    return { targetUrl: new URL(rawTarget), isTvHtmlEntry: false };
+    const targetUrl = new URL(rawTarget);
+    if (!isAllowedCorsBypassUrl(targetUrl)) {
+      throw new Error(`host not allowed: ${targetUrl.hostname}`);
+    }
+    return { targetUrl, isTvHtmlEntry: false };
   }
 
   // 2. Point d'entrée YouTube TV (/tv)
@@ -500,6 +538,15 @@ export default async function handleProxyRequest(req, res) {
       body,
       redirect: isCorsBypass ? 'follow' : 'manual'
     });
+
+    // Une redirection suivie ne doit pas sortir de la liste des hôtes autorisés
+    if (isCorsBypass && upstreamRes.url && !isAllowedCorsBypassUrl(new URL(upstreamRes.url))) {
+      await upstreamRes.body?.cancel();
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.end('Redirect target not allowed');
+      return;
+    }
 
     // Gestion des redirections upstream
     if ([301, 302, 303, 307, 308].includes(upstreamRes.status)) {
