@@ -5,5 +5,7 @@ services:
     image: ghcr.io/webwurm/vidaa-ytb:latest
     container_name: vidaa-ytb
     restart: unless-stopped
+    environment:
+      - PORT=3080
     ports:
-      - "3080:3000"
+      - "3080:3080"

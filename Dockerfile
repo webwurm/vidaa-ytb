@@ -19,5 +19,5 @@ COPY --from=build /app/dist/vidaa ./dist/vidaa
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=60s --timeout=5s --start-period=10s \
-  CMD wget -q -O /dev/null http://127.0.0.1:3000/manifest.json || exit 1
+  CMD wget -q -O /dev/null "http://127.0.0.1:${PORT}/manifest.json" || exit 1
 CMD ["node", "scripts/serve-vidaa.mjs"]
