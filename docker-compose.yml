@@ -3,6 +3,7 @@
 services:
   vidaa-ytb:
     image: ghcr.io/webwurm/vidaa-ytb:latest
+    pull_policy: always
     container_name: vidaa-ytb
     restart: unless-stopped
     environment:

@@ -409,6 +409,9 @@ function resolveUpstreamUrl(reqUrl) {
  */
 export default async function handleProxyRequest(req, res) {
   const reqOrigin = req.headers.origin || '*';
+  if (process.env.APP_VERSION) {
+    res.setHeader('X-Vidaa-Ytb-Version', process.env.APP_VERSION);
+  }
 
   // Gestion CORS preflight
   if (req.method === 'OPTIONS') {

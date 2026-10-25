@@ -8,8 +8,10 @@ RUN npm run package:vidaa
 
 # Runtime stage: the proxy only needs Node built-ins, no node_modules
 FROM node:22-alpine
+ARG APP_VERSION=dev
 WORKDIR /app
-ENV NODE_ENV=production \
+ENV APP_VERSION=$APP_VERSION \
+    NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000
 COPY --from=build /app/package.json ./
