@@ -711,17 +711,31 @@ export default async function handleProxyRequest(req, res) {
       if (upstreamContentLength && !upstreamContentEncoding) {
         res.setHeader('Content-Length', upstreamContentLength);
       }
+      // req.destroyed ne convient pas : sous Node, une requête POST est détruite dès que son
+      // corps a été lu, ce qui coupait le flux SABR à 0 octet. On suit la fermeture de la réponse.
+      let clientGone = false;
+      res.once('close', () => {
+        clientGone = true;
+      });
       const reader = upstreamRes.body.getReader();
       try {
         while (true) {
-          if (req.destroyed || res.writableEnded) {
+          if (clientGone || res.writableEnded) {
             await reader.cancel();
             break;
           }
           const { done, value } = await reader.read();
           if (done) break;
-          if (value && value.byteLength > 0) {
-            res.write(Buffer.from(value));
+          if (value && value.byteLength > 0 && !res.write(Buffer.from(value)) && !clientGone) {
+            await new Promise((resolve) => {
+              const done = () => {
+                res.off('drain', done);
+                res.off('close', done);
+                resolve();
+              };
+              res.on('drain', done);
+              res.on('close', done);
+            });
           }
         }
       } finally {
